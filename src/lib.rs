@@ -66,8 +66,10 @@ use vm_memory::{
 mod fam;
 mod vfio_device;
 mod vfio_ioctls;
+mod dma_mapping;
 
 pub use vfio_device::{VfioContainer, VfioDevice, VfioError, VfioIrq};
+pub use dma_mapping::VfioDmaMapping;
 
 /// Trait meant for triggering the DMA mapping update related to an external
 /// device not managed fully through virtio. It is dedicated to virtio-iommu
