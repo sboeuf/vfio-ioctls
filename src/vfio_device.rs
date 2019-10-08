@@ -628,6 +628,7 @@ pub struct VfioDevice {
     irqs: HashMap<u32, VfioIrq>,
     group: Arc<VfioGroup>,
     container: Arc<VfioContainer>,
+    iommu_attached: bool,
 }
 
 impl VfioDevice {
@@ -636,9 +637,11 @@ impl VfioDevice {
     /// # Parameters
     /// * `sysfspath`: specify the vfio device path in sys file system.
     /// * `container`: the new VFIO device object will bind to this container object.
+    /// * `iommu_attached`: the new VFIO device IOMMU attachment flag.
     pub fn new(
         sysfspath: &Path,
         container: Arc<VfioContainer>,
+        iommu_attached: bool,
     ) -> Result<Self> {
         let uuid_path: PathBuf = [sysfspath, Path::new("iommu_group")].iter().collect();
         let group_path = uuid_path.read_link().map_err(|_| VfioError::InvalidPath)?;
@@ -660,6 +663,7 @@ impl VfioDevice {
             irqs,
             group,
             container,
+            iommu_attached,
         })
     }
 
@@ -942,16 +946,18 @@ impl VfioDevice {
     /// # Parameters
     /// * mem: pinned guest memory which could be accessed by devices binding to the container.
     pub fn setup_dma_map<M:GuestMemory>(&self, mem: &M) -> Result<()> {
-        mem.with_regions(|_index, region| {
-            let host_addr = region
-                .get_host_address(MemoryRegionAddress(0))
-                .map_err(|_| VfioError::IommuDmaMap)?;
-            self.container.vfio_dma_map(
-                region.start_addr().raw_value(),
-                region.len() as u64,
-                host_addr as u64,
-            )
-        })?;
+        if !self.iommu_attached {
+            mem.with_regions(|_index, region| {
+                let host_addr = region
+                    .get_host_address(MemoryRegionAddress(0))
+                    .map_err(|_| VfioError::IommuDmaMap)?;
+                self.container.vfio_dma_map(
+                    region.start_addr().raw_value(),
+                    region.len() as u64,
+                    host_addr as u64,
+                )
+            })?;
+        }
         Ok(())
     }
 
@@ -963,10 +969,12 @@ impl VfioDevice {
     /// # Parameters
     /// * mem: pinned guest memory which could be accessed by devices binding to the container.
     pub fn unset_dma_map<M: GuestMemory>(&self, mem: &M) -> Result<()> {
-        mem.with_regions(|_index, region| {
-            self.container
-                .vfio_dma_unmap(region.start_addr().raw_value(), region.len() as u64)
-        })?;
+        if !self.iommu_attached {
+            mem.with_regions(|_index, region| {
+                self.container
+                    .vfio_dma_unmap(region.start_addr().raw_value(), region.len() as u64)
+            })?;
+        }
         Ok(())
     }
 
