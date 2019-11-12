@@ -636,7 +636,10 @@ impl VfioDevice {
     /// # Parameters
     /// * `sysfspath`: specify the vfio device path in sys file system.
     /// * `container`: the new VFIO device object will bind to this container object.
-    pub fn new(sysfspath: &Path, container: Arc<VfioContainer>) -> Result<Self> {
+    pub fn new(
+        sysfspath: &Path,
+        container: Arc<VfioContainer>,
+    ) -> Result<Self> {
         let uuid_path: PathBuf = [sysfspath, Path::new("iommu_group")].iter().collect();
         let group_path = uuid_path.read_link().map_err(|_| VfioError::InvalidPath)?;
         let group_osstr = group_path.file_name().ok_or(VfioError::InvalidPath)?;
@@ -931,6 +934,40 @@ impl VfioDevice {
                 index, addr, e
             );
         }
+    }
+
+    /// Add all guest memory regions into the vfio device container's iommu table.
+    /// then vfio kernel driver could access guest memory from gfn
+    ///
+    /// # Parameters
+    /// * mem: pinned guest memory which could be accessed by devices binding to the container.
+    pub fn setup_dma_map<M:GuestMemory>(&self, mem: &M) -> Result<()> {
+        mem.with_regions(|_index, region| {
+            let host_addr = region
+                .get_host_address(MemoryRegionAddress(0))
+                .map_err(|_| VfioError::IommuDmaMap)?;
+            self.container.vfio_dma_map(
+                region.start_addr().raw_value(),
+                region.len() as u64,
+                host_addr as u64,
+            )
+        })?;
+        Ok(())
+    }
+
+    /// Remove all guest memory regions from the vfio device container's iommu table.
+    ///
+    /// The vfio kernel driver and device hardware couldn't access this guest memory after
+    /// returning from the function.
+    ///
+    /// # Parameters
+    /// * mem: pinned guest memory which could be accessed by devices binding to the container.
+    pub fn unset_dma_map<M: GuestMemory>(&self, mem: &M) -> Result<()> {
+        mem.with_regions(|_index, region| {
+            self.container
+                .vfio_dma_unmap(region.start_addr().raw_value(), region.len() as u64)
+        })?;
+        Ok(())
     }
 
     /// Return the maximum numner of interrupts a VFIO device can request.
