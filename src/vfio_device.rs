@@ -33,7 +33,7 @@ use crate::vfio_ioctls::*;
 #[derive(Debug)]
 pub enum VfioError {
     OpenContainer(io::Error),
-    OpenGroup(io::Error),
+    OpenGroup(io::Error, String),
     GetGroupStatus,
     GroupViable,
     VfioApiVersion,
@@ -61,8 +61,8 @@ impl fmt::Display for VfioError {
             VfioError::OpenContainer(e) => {
                 write!(f, "failed to open /dev/vfio/vfio container: {}", e)
             }
-            VfioError::OpenGroup(e) => {
-                write!(f, "failed to open /dev/vfio/$group_num group: {}", e)
+            VfioError::OpenGroup(e, ref p) => {
+                write!(f, "failed to open /dev/vfio/{} group: {}", p, e)
             }
             VfioError::GetGroupStatus => write!(f, "failed to get Group Status"),
             VfioError::GroupViable => write!(f, "group is inviable"),
@@ -389,7 +389,7 @@ impl VfioGroup {
             .read(true)
             .write(true)
             .open(&group_path)
-            .map_err(VfioError::OpenGroup)?;
+            .map_err(|e| VfioError::OpenGroup(e, id.to_string()))?;
 
         let mut group_status = vfio_group_status {
             argsz: mem::size_of::<vfio_group_status>() as u32,
