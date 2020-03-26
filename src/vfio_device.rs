@@ -21,7 +21,7 @@ use kvm_bindings::{
 use kvm_ioctls::DeviceFd;
 use log::{debug, error, warn};
 use vfio_bindings::bindings::vfio::*;
-use vm_memory::{Address, GuestMemory, GuestMemoryRegion, MemoryRegionAddress};
+use vm_memory::{Address, GuestMemory, GuestMemoryRegion, MemoryRegionAddress, GuestRegionMmap};
 use vmm_sys_util::errno::Error as SysError;
 use vmm_sys_util::eventfd::EventFd;
 use vmm_sys_util::ioctl::*;
@@ -976,6 +976,22 @@ impl VfioDevice {
             })?;
         }
         Ok(())
+    }
+
+    /// Update the vfio device container's iommu table when guest memory is extended.
+    ///
+    /// # Parameters
+    /// * new_region: extended guest memory region which should be updated.
+    pub fn extend_dma_map(&self, new_region: &Arc<GuestRegionMmap>) -> Result<()> {
+        if !self.iommu_attached {
+            self.container.vfio_dma_map(
+                new_region.start_addr().raw_value(),
+                new_region.len() as u64,
+                new_region.as_ptr() as u64,
+            )
+        } else {
+            Ok(())
+        }
     }
 
     /// Return the maximum numner of interrupts a VFIO device can request.
