@@ -968,3 +968,82 @@ impl Drop for VfioDevice {
         self.container.put_group(self.group.clone());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kvm_ioctls::Kvm;
+    use kvm_bindings::kvm_device_type_KVM_DEV_TYPE_VFIO;
+
+    // Since it is hard to find a common PCI device to do some unit test
+    // especially in cloud environment. We try to test some of them locally
+    // and ignore them by default, real VFIO device with VFIO_DEVICE_PATH
+    const VFIO_DEVICE_PATH: &str = "/sys/bus/pci/devices/0000:00:14.0/";
+
+    fn create_kvm_device() -> DeviceFd {
+        let kvm = Kvm::new().expect("Failed to create new KVM instance");
+        let vm = kvm.create_vm().expect("Failed to create VM fd");
+
+        let mut vfio_device = kvm_bindings::kvm_create_device {
+            type_: kvm_device_type_KVM_DEV_TYPE_VFIO,
+            fd: 0,
+            flags: 0,
+        };
+
+        vm.create_device(&mut vfio_device).expect("Cannot creat KVM device")
+    }
+
+    #[test]
+    fn test_create_vfio_container() {
+        let kvm_device = create_kvm_device();
+
+        assert!(VfioContainer::new(Arc::new(kvm_device)).is_ok());
+    }
+
+    #[test]
+    #[ignore]
+    // First pick a local device to test:
+    // $ lspci -nnn
+    // 00:14.0 USB controller [0c03]: Intel Corporation Sunrise Point-LP USB 3.0 xHCI Controller [8086:9d2f] (rev 21)
+    // 00:14.2 Signal processing controller [1180]: Intel Corporation Sunrise Point-LP Thermal subsystem [8086:9d31] (rev 21)
+    // Unbound from its regular driver and bound back to vfio
+    // echo 0000:00:14.0 > /sys/bus/pci/devices/0000\:00\:14.0/driver/unbind
+    // echo 8086 9d2f > /sys/bus/pci/drivers/vfio-pci/new_id
+    // echo 0000:00:14.2 > /sys/bus/pci/devices/0000\:00\:14.2/driver/unbind
+    // echo 8086 9d31 > /sys/bus/pci/drivers/vfio-pci/new_id
+    // Now the device is managed by the VFIO framework and we can remove
+    // the #[ignore] attribute to start this unit.
+    fn test_vfio_device() {
+        let kvm_device = create_kvm_device();
+        let container = Arc::new(
+                    VfioContainer::new(Arc::new(kvm_device)).unwrap());
+
+        let device = VfioDevice::new(
+            Path::new(VFIO_DEVICE_PATH),
+            container
+        ).expect("Failed to create VFIO device");
+
+        assert!(device.as_raw_fd() > 0);
+
+        // Get Interrupt info for INTX,MSI,MSIX
+        let nr_irq = device.max_interrupts();
+        assert!(nr_irq > 0);
+
+        assert!(device.get_irq_info(VFIO_PCI_INTX_IRQ_INDEX).is_some());
+        assert!(device.get_irq_info(VFIO_PCI_MSI_IRQ_INDEX).is_some());
+        assert!(device.get_irq_info(VFIO_PCI_MSIX_IRQ_INDEX).is_some());
+
+        // Get region info with BAR0 index
+        // BAR0 [flags: 0x7, offset: 0x0, size: 0x10000]
+        let bar0: u32 = VFIO_PCI_BAR0_REGION_INDEX;
+        assert_eq!(device.get_region_flags(bar0), 0x7);
+        assert_eq!(device.get_region_offset(bar0),0x0);
+        assert_eq!(device.get_region_size(bar0), 0x10000);
+
+        // BAR0 region[0x0, 0x10000] has data [0x80, 0, 0, 0x01]
+        let mut data = [0; 4];
+        let (start, _end) = device.get_region_mmap(bar0);
+        device.region_read(bar0, &mut data, start);
+        assert_eq!(data, [0x80, 0, 0, 0x01]);
+    }
+}
