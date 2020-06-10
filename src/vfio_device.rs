@@ -132,6 +132,24 @@ impl VfioContainer {
     ///
     /// # Arguments
     /// * `device_fd`: file handle of the KVM VFIO device.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use kvm_bindings::kvm_device_type_KVM_DEV_TYPE_VFIO;
+    /// # use kvm_ioctls::Kvm;
+    /// # use std::sync::Arc;
+    /// # use vfio_ioctls::VfioContainer;
+    /// let kvm = Kvm::new().unwrap();
+    /// let vm = kvm.create_vm().unwrap();
+    /// let mut vfio_device = kvm_bindings::kvm_create_device {
+    ///     type_: kvm_device_type_KVM_DEV_TYPE_VFIO,
+    ///     fd: 0,
+    ///     flags: 0,
+    /// };
+    /// let fd = vm.create_device(&mut vfio_device).unwrap();
+    /// let container = VfioContainer::new(Arc::new(fd)).unwrap();
+    /// ```
     pub fn new(device_fd: Arc<DeviceFd>) -> Result<Self> {
         let container = OpenOptions::new()
             .read(true)
