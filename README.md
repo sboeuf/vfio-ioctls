@@ -1,41 +1,40 @@
-# Crate Name
+# vfio-ioctls
 
-## Design
+The vfio-ioctls crate provide safe wrappers over the
+[VFIO API](https://www.kernel.org/doc/Documentation/vfio.txt), a set of
+ioctls are used to expose direct device access to userspace in a secure,
+IOMMU protected environment. The ioctls include create and configure
+VFIO container, group, device and IOMMU related objects on Linux.
+The vfio-ioctls crate provide three structures and a trait to access
+these ioctls:
+- `VfioContainer` - wrapper over a VFIO container object
+- `VfioDevice` - to access underline hardware devices
+- `VfioDmaMapping` - implements the ExternalDmaMapping trait
+- `ExternalDmaMapping` - Trait for triggering the DMA mapping update
+related to an external device
 
-TODO: This section should have a high-level design of the crate.
+For further details, please check the code documentation.
 
-Some questions that might help in writing this section:
-- What is the purpose of this crate?
-- What are the main components of the crate? How do they interact which each
-  other?
+## Supported Platform
+
+- x86_64
 
 ## Usage
 
-TODO: This section describes how the crate is used.
+Add the following to your `Cargo.toml`:
+```toml
+vfio-ioctls = { git = "https://github.com/cloud-hypervisor/vfio-ioctls", branch = "ch" }
+```
 
-Some questions that might help in writing this section:
-- What traits do users need to implement?
-- Does the crate have any default/optional features? What is each feature
-  doing?
-- Is this crate used by other rust-vmm components? If yes, how?
-
-## Examples
-
-TODO: Usage examples.
-
+Then you can import the structs or trait where you need them:
 ```rust
-use my_crate;
+// Import the required structs
+use vfio_ioctls::{VfioContainer, VfioDevice, VfioDmaMapping};
 
-...
+// Import the required trait
+use vfio_ioctls::ExternalDmaMapping;
 ```
 
 ## License
 
-**!!!NOTICE**: The BSD-3-Clause license is not included in this template.
-The license needs to be manually added because the text of the license file
-also includes the copyright. The copyright can be different for different
-crates. If the crate contains code from CrosVM, the crate must add the
-CrosVM copyright which can be found
-[here](https://chromium.googlesource.com/chromiumos/platform/crosvm/+/master/LICENSE).
-For crates developed from scratch, the copyright is different and depends on
-the contributors.
+This code is licensed under Apache-2.0 or BSD-3-Clause.
