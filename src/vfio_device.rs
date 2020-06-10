@@ -1081,7 +1081,8 @@ mod tests {
 
         let device = VfioDevice::new(
             Path::new(VFIO_DEVICE_PATH),
-            container
+            container,
+            true
         ).expect("Failed to create VFIO device");
 
         assert!(device.as_raw_fd() > 0);
