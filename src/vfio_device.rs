@@ -561,7 +561,7 @@ impl VfioDeviceInfo {
                 ioctl_with_mut_ref(&self.device, VFIO_DEVICE_GET_REGION_INFO(), &mut reg_info)
             };
             if ret < 0 {
-                error!("Could not get region #{} info", i);
+                warn!("Could not get region #{} info", i);
                 continue;
             }
 
