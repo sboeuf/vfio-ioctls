@@ -58,12 +58,8 @@ pub type Result<T> = std::result::Result<T, VfioError>;
 impl fmt::Display for VfioError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            VfioError::OpenContainer(e) => {
-                write!(f, "failed to open /dev/vfio/vfio container: {}", e)
-            }
-            VfioError::OpenGroup(e, ref p) => {
-                write!(f, "failed to open /dev/vfio/{} group: {}", p, e)
-            }
+            VfioError::OpenContainer(_e) => write!(f, "failed to open /dev/vfio/vfio container"),
+            VfioError::OpenGroup(_e, ref p) => write!(f, "failed to open /dev/vfio/{} group", p),
             VfioError::GetGroupStatus => write!(f, "failed to get Group Status"),
             VfioError::GroupViable => write!(f, "group is inviable"),
             VfioError::VfioApiVersion => write!(
@@ -84,8 +80,8 @@ impl fmt::Display for VfioError {
                 "failed to set container's IOMMU driver type as VfioType1V2"
             ),
             VfioError::GroupGetDeviceFD => write!(f, "failed to get vfio device fd"),
-            VfioError::KvmSetDeviceAttr(e) => {
-                write!(f, "failed to set KVM vfio device's attribute: {}", e)
+            VfioError::KvmSetDeviceAttr(_e) => {
+                write!(f, "failed to set KVM vfio device's attribute")
             }
             VfioError::VfioDeviceGetInfo => {
                 write!(f, "failed to get vfio device's info or info doesn't match")
@@ -100,6 +96,33 @@ impl fmt::Display for VfioError {
             }
             VfioError::VfioDeviceGetIrqInfo => write!(f, "failed to get vfio device irq info"),
             VfioError::VfioDeviceSetIrq => write!(f, "failed to set vfio deviece irq"),
+        }
+    }
+}
+
+impl std::error::Error for VfioError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            VfioError::OpenContainer(e) => Some(e),
+            VfioError::OpenGroup(e, ref _p) => Some(e),
+            VfioError::GetGroupStatus => None,
+            VfioError::GroupViable => None,
+            VfioError::VfioApiVersion => None,
+            VfioError::VfioExtension => None,
+            VfioError::VfioInvalidType => None,
+            VfioError::VfioType1V2 => None,
+            VfioError::GroupSetContainer => None,
+            VfioError::UnsetContainer => None,
+            VfioError::ContainerSetIOMMU => None,
+            VfioError::GroupGetDeviceFD => None,
+            VfioError::KvmSetDeviceAttr(e) => Some(e),
+            VfioError::VfioDeviceGetInfo => None,
+            VfioError::VfioDeviceGetRegionInfo => None,
+            VfioError::InvalidPath => None,
+            VfioError::IommuDmaMap => None,
+            VfioError::IommuDmaUnmap => None,
+            VfioError::VfioDeviceGetIrqInfo => None,
+            VfioError::VfioDeviceSetIrq => None,
         }
     }
 }
