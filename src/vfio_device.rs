@@ -553,10 +553,10 @@ impl VfioDeviceInfo {
                 count: irq_info.count,
             };
 
-            debug!("IRQ #{}", index);
-            debug!("\tflag 0x{:x}", irq.flags);
-            debug!("\tindex {}", irq.index);
-            debug!("\tcount {}", irq.count);
+            warn!("IRQ #{}", index);
+            warn!("\tflag 0x{:x}", irq.flags);
+            warn!("\tindex {}", irq.index);
+            warn!("\tcount {}", irq.count);
 
             irqs.insert(index, irq);
         }
